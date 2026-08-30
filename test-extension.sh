@@ -9,7 +9,7 @@
 # Usage:
 #   ./test-extension.sh              # verify, package, install
 #   ./test-extension.sh --no-install # stop after packaging
-set -e
+set -eo pipefail
 
 cd "$(dirname "$0")"
 
@@ -29,14 +29,21 @@ echo "🔍 Typechecking..."
 
 echo ""
 echo "🧪 Running tests..."
-npx vitest run 2>&1 | grep -E "Test Files|Tests "
+# pipefail means a vitest failure fails the script. The `|| true` keeps grep from
+# fabricating one when it simply matches nothing, so the exit code is vitest's.
+npx vitest run 2>&1 | { grep -E "Test Files|Tests " || true; }
 
 echo ""
 echo "🧱 Checking the pure modules stayed pure..."
 # parse, format, model and plan are the part that has to be right, which is why
 # they are the part that is trivially testable. Nothing else notices if the
 # boundary dissolves.
-if grep -l "from 'vscode'" src/parse.ts src/format.ts src/model.ts src/plan.ts 2>/dev/null; then
+#
+# Matches both quote styles and require(), not just `from 'vscode'` — the narrow
+# version would have waved through `from "vscode"` on the day someone's editor
+# reformatted the file.
+if grep -nE "(from|require\()[[:space:]]*['\"]vscode['\"]" \
+     src/parse.ts src/format.ts src/model.ts src/plan.ts; then
   echo "❌ vscode leaked into a pure module (listed above)"
   exit 1
 fi
@@ -49,7 +56,8 @@ npm run compile
 echo ""
 echo "📦 Packaging VSIX..."
 rm -f ./*.vsix
-npx @vscode/vsce package --no-git-tag-version --allow-star-activation --allow-missing-repository --skip-license 2>&1 | grep -v "WARNING"
+npx @vscode/vsce package --no-git-tag-version --allow-star-activation --allow-missing-repository --skip-license 2>&1 \
+  | { grep -v "WARNING" || true; }
 
 if [ "$INSTALL" = "0" ]; then
   echo ""

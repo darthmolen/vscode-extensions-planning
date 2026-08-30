@@ -9,38 +9,64 @@
  * it. A fixed path rots into a dead link exactly when somebody goes looking.
  */
 
-/** Board positions, best first. A plan can exist in several at once. */
-const PRECEDENCE = [
-  'planning/in-progress/',
-  'planning/waves/',
-  'planning/completed/',
-  'planning/backlog/',
-] as const
+/**
+ * Board positions, best first. A plan can exist in several at once.
+ *
+ * Written as an ordered list of predicates rather than a prefix array with
+ * arithmetic on the index. The previous version gave the queue root 0.5 to slot
+ * it "just after in-progress", and 0.5 sorts *before* 1 -- so the queue root
+ * beat in-progress, which is the opposite of what its own comment claimed. Two
+ * tests covered half the ordering each and never put both in the same list.
+ */
+const BOARD: readonly ((path: string) => boolean)[] = [
+  (p) => p.startsWith('planning/in-progress/'),
+  // The queue root: planning/<file>.md, nothing deeper.
+  (p) => /^planning\/[^/]+$/.test(p),
+  (p) => p.startsWith('planning/waves/'),
+  (p) => p.startsWith('planning/completed/'),
+  (p) => p.startsWith('planning/backlog/'),
+]
+
+const UNRANKED = BOARD.length
+// needs-review holds copies for review, never the plan of record. Always last.
+const NEEDS_REVIEW = BOARD.length + 1
 
 const rank = (path: string): number => {
-  // needs-review holds copies for review, never the plan of record. Always last.
-  if (path.startsWith('planning/needs-review/')) return PRECEDENCE.length + 2
+  if (path.startsWith('planning/needs-review/')) return NEEDS_REVIEW
 
-  const found = PRECEDENCE.findIndex((prefix) => path.startsWith(prefix))
-  if (found !== -1) return found + 1
-
-  // planning/<file>.md -- the queue root, which outranks everything but in-progress.
-  if (/^planning\/[^/]+$/.test(path)) return 0.5
-
-  return PRECEDENCE.length + 1
+  const found = BOARD.findIndex((matches) => matches(path))
+  return found === -1 ? UNRANKED : found
 }
 
-export function planPattern(plan: string | undefined): string | undefined {
-  if (plan === undefined) return undefined
+/**
+ * A workspace-root-relative path, or undefined if the value cannot be one.
+ *
+ * Shared by the plan glob and `reminders.directory`, because both are strings a
+ * person can type and both end up as a RelativePattern against the workspace
+ * folder. Neither may climb out of it.
+ */
+export function workspaceRelative(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
 
-  const trimmed = plan.trim().replace(/^`+|`+$/g, '').trim().replace(/^\.?\//, '')
+  const trimmed = value
+    .trim()
+    .replace(/^`+|`+$/g, '')
+    .trim()
+    .replace(/^\.?\//, '')
+    .replace(/\/+$/, '')
+
   if (trimmed === '') return undefined
-
-  // RelativePattern resolves against the workspace folder. A pattern that climbs
-  // out of it is not a plan reference, whatever it is.
   if (trimmed.split('/').includes('..')) return undefined
 
   return trimmed
+}
+
+/** The plan reference, as a pattern to glob with. */
+export const planPattern = workspaceRelative
+
+/** `reminders.directory`, falling back when the configured value is unusable. */
+export function safeDirectory(value: string | undefined, fallback: string): string {
+  return workspaceRelative(value) ?? fallback
 }
 
 export function choosePlanPath(paths: readonly string[]): string | undefined {

@@ -25,6 +25,19 @@ export interface Refused {
   readonly refused: string
 }
 
+/**
+ * The calendar day where the person is, as `YYYY-MM-DD`.
+ *
+ * Not `toISOString().slice(0, 10)`, which is UTC. Closing a reminder at half
+ * past eleven at night in a zone behind UTC would record tomorrow's date, and
+ * SKILL.md is specific that the date is the day it was answered — by somebody
+ * who is not in UTC.
+ */
+export function localDate(now: Date = new Date()): string {
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
 const STATUS_LINE = /^\*\*Status:\*\*/
 
 const escapeForRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

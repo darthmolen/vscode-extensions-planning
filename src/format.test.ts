@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
-import { closeReminder } from './format.ts'
+import { closeReminder, localDate } from './format.ts'
 import { isReminder, parseReminder } from './parse.ts'
 
 /**
@@ -25,6 +25,26 @@ const closed = (text: string, note = 'Pushed from his laptop over the LAN.') => 
   if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
   return result
 }
+
+describe('localDate', () => {
+  test('is the calendar day where the person is, not in UTC', () => {
+    // 23:30 on the 6th, in a zone six hours behind UTC, is already the 7th in
+    // UTC. The skill says the date is the day it was answered, and the person
+    // answering it is not in UTC.
+    const lateEvening = new Date(2026, 8, 6, 23, 30, 0)
+
+    expect(localDate(lateEvening)).toBe('2026-09-06')
+    expect(lateEvening.toISOString().slice(0, 10)).not.toBe('2026-09-06')
+  })
+
+  test('pads month and day', () => {
+    expect(localDate(new Date(2026, 0, 3, 12, 0, 0))).toBe('2026-01-03')
+  })
+
+  test('early morning stays on its own day', () => {
+    expect(localDate(new Date(2026, 8, 6, 0, 15, 0))).toBe('2026-09-06')
+  })
+})
 
 describe('closeReminder', () => {
   test('sets the status to done', () => {
