@@ -19,6 +19,10 @@ const manifest = JSON.parse(read('package.json')) as {
   contributes: {
     commands: { command: string; title: string }[]
     configuration: { properties: Record<string, { default?: unknown }> }
+    viewsContainers: { panel: { id: string }[] }
+    views: Record<string, { id: string }[]>
+    viewsWelcome: { view: string; contents: string }[]
+    menus: Record<string, { command: string; when?: string; group?: string }[]>
   }
 }
 
@@ -69,6 +73,42 @@ describe('the manifest and the code agree', () => {
 
   test('the extension activates without waiting to be asked', () => {
     expect(manifest.activationEvents).toContain('onStartupFinished')
+  })
+
+  test('the view id in the manifest is the id createTreeView asks for', () => {
+    const declared = manifest.contributes.views['reminders.panel']?.map((v) => v.id) ?? []
+    const used = /createTreeView<[^>]*>\(\s*'([^']+)'/.exec(extensionSrc)?.[1]
+
+    expect(used).toBeDefined() // control
+    expect(declared).toContain(used)
+  })
+
+  test('the view lives in a panel container, beside Problems and Terminal', () => {
+    const containers = manifest.contributes.viewsContainers.panel.map((c) => c.id)
+
+    expect(containers).toContain('reminders.panel')
+    expect(Object.keys(manifest.contributes.views)).toContain('reminders.panel')
+  })
+
+  test('the welcome content points at a view that exists and a command that exists', () => {
+    const welcome = manifest.contributes.viewsWelcome
+    expect(welcome.length).toBeGreaterThan(0) // control
+
+    for (const w of welcome) {
+      const declared = manifest.contributes.views['reminders.panel']?.map((v) => v.id) ?? []
+      expect(declared).toContain(w.view)
+      for (const [, command] of w.contents.matchAll(/command:([a-zA-Z.]+)/g)) {
+        expect(declaredCommands).toContain(command)
+      }
+    }
+  })
+
+  test('every menu entry names a command that is declared', () => {
+    const menus = manifest.contributes.menus
+    const all = [...(menus['view/title'] ?? []), ...(menus['view/item/context'] ?? [])]
+
+    expect(all.length).toBeGreaterThan(0) // control
+    for (const m of all) expect(declaredCommands).toContain(m.command)
   })
 
   test('the status bar priority default is 49, right of Problems at 50', () => {

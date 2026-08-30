@@ -16,6 +16,8 @@ export interface Closure {
   readonly date: string
   /** What actually happened. Required: "done" alone is the one fact nobody needs. */
   readonly note: string
+  /** The bold label written beneath Status. The skill owns this word, not us. */
+  readonly label: string
 }
 
 /** A refusal, with the reason. Closing never half-succeeds. */
@@ -24,7 +26,12 @@ export interface Refused {
 }
 
 const STATUS_LINE = /^\*\*Status:\*\*/
-const CLOSED_LINE = /^\*\*Closed:\*\*/
+
+const escapeForRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** The label is configurable, so the line that recognises it has to be built. */
+const closedLine = (label: string): RegExp =>
+  new RegExp('^\\*\\*' + escapeForRegExp(label) + ':\\*\\*')
 
 export function closeReminder(text: string, closure: Closure): string | Refused {
   const note = closure.note.trim()
@@ -35,13 +42,18 @@ export function closeReminder(text: string, closure: Closure): string | Refused 
     }
   }
 
+  if (closure.label.trim() === '') {
+    return { refused: 'no closed label configured — reminders.closedLabel is empty' }
+  }
+
   // Windows writes CRLF and this runs on Windows. Rejoin with whatever came in,
   // or the whole file shows as changed in a diff for the sake of two lines.
   const eol = text.includes('\r\n') ? '\r\n' : '\n'
   const lines = text.split(/\r?\n/)
 
-  // Drop any existing Closed line first, so re-closing corrects rather than stacks.
-  const withoutClosed = lines.filter((line) => !CLOSED_LINE.test(line))
+  // Drop any existing closed line first, so re-closing corrects rather than stacks.
+  const existing = closedLine(closure.label)
+  const withoutClosed = lines.filter((line) => !existing.test(line))
 
   const statusAt = withoutClosed.findIndex((line) => STATUS_LINE.test(line))
   if (statusAt === -1) {
@@ -49,7 +61,11 @@ export function closeReminder(text: string, closure: Closure): string | Refused 
   }
 
   withoutClosed[statusAt] = `**Status:** ${closure.status}`
-  withoutClosed.splice(statusAt + 1, 0, `**Closed:** ${closure.date} — ${note}`)
+  withoutClosed.splice(
+    statusAt + 1,
+    0,
+    `**${closure.label}:** ${closure.date} — ${note}`,
+  )
 
   return withoutClosed.join(eol)
 }

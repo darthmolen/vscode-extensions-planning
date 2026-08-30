@@ -2,7 +2,7 @@
   "name": "reminders",
   "displayName": "Reminders",
   "description": "Surfaces set-reminders markdown files as a status bar count, a quick pick, and a panel view.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "pyquest",
   "private": true,
   "license": "MIT",
@@ -17,6 +17,30 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "reminders.panel",
+          "title": "Reminders",
+          "icon": "media/bell.svg"
+        }
+      ]
+    },
+    "views": {
+      "reminders.panel": [
+        {
+          "id": "reminders.view",
+          "name": "Reminders",
+          "contextualTitle": "Reminders"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "reminders.view",
+        "contents": "Nothing outstanding.\n\nA reminder records work a person must do, which no test will ever notice was skipped.\n\n[Refresh](command:reminders.refresh)"
+      }
+    ],
     "commands": [
       {
         "command": "reminders.show",
@@ -24,9 +48,81 @@
       },
       {
         "command": "reminders.refresh",
-        "title": "Reminders: Refresh"
+        "title": "Reminders: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "reminders.openReminder",
+        "title": "Reminders: Open Reminder"
+      },
+      {
+        "command": "reminders.openMalformed",
+        "title": "Reminders: Open Unparsed File"
+      },
+      {
+        "command": "reminders.openPlan",
+        "title": "Open the plan",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "reminders.close",
+        "title": "Close, with a note",
+        "icon": "$(check)"
+      },
+      {
+        "command": "reminders.drop",
+        "title": "Drop, with a reason",
+        "icon": "$(circle-slash)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "reminders.refresh",
+          "when": "view == reminders.view",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "reminders.openPlan",
+          "when": "view == reminders.view && viewItem == reminderWithPlan",
+          "group": "inline@1"
+        },
+        {
+          "command": "reminders.close",
+          "when": "view == reminders.view && viewItem =~ /^reminder(WithPlan)?$/",
+          "group": "inline@2"
+        },
+        {
+          "command": "reminders.drop",
+          "when": "view == reminders.view && viewItem =~ /^reminder(WithPlan)?$/",
+          "group": "context@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "reminders.openReminder",
+          "when": "false"
+        },
+        {
+          "command": "reminders.openMalformed",
+          "when": "false"
+        },
+        {
+          "command": "reminders.openPlan",
+          "when": "false"
+        },
+        {
+          "command": "reminders.close",
+          "when": "false"
+        },
+        {
+          "command": "reminders.drop",
+          "when": "false"
+        }
+      ]
+    },
     "configuration": {
       "title": "Reminders",
       "properties": {

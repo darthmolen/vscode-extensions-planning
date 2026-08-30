@@ -21,7 +21,7 @@ const GITEA = readFileSync(
 ).replace(/\r\n/g, '\n')
 
 const closed = (text: string, note = 'Pushed from his laptop over the LAN.') => {
-  const result = closeReminder(text, { status: 'done', date: '2026-09-06', note })
+  const result = closeReminder(text, { status: 'done', date: '2026-09-06', note, label: 'Closed' })
   if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
   return result
 }
@@ -79,7 +79,7 @@ describe('closeReminder', () => {
   })
 
   test('refuses an empty note, because the note is the point of keeping the file', () => {
-    const result = closeReminder(GITEA, { status: 'done', date: '2026-09-06', note: '   ' })
+    const result = closeReminder(GITEA, { status: 'done', date: '2026-09-06', note: '   ', label: 'Closed' })
 
     expect(typeof result).not.toBe('string')
     expect(typeof result === 'string' ? '' : result.refused).toMatch(/note/i)
@@ -90,6 +90,7 @@ describe('closeReminder', () => {
       status: 'dropped',
       date: '2026-09-06',
       note: 'The laptop was replaced; this no longer applies.',
+      label: 'Closed',
     })
     if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
 
@@ -113,10 +114,57 @@ describe('closeReminder', () => {
       status: 'done',
       date: '2026-09-06',
       note: 'x',
+      label: 'Closed',
     })
 
     expect(typeof result).not.toBe('string')
     expect(typeof result === 'string' ? '' : result.refused).toMatch(/Status/)
+  })
+
+  test('honours a configured label, so reminders.closedLabel is not decorative', () => {
+    const result = closeReminder(GITEA, {
+      status: 'done',
+      date: '2026-09-06',
+      note: 'Answered.',
+      label: 'Resolved',
+    })
+    if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
+
+    expect(result).toContain('**Resolved:** 2026-09-06 — Answered.')
+    expect(result).not.toContain('**Closed:**')
+  })
+
+  test('re-closing under a configured label replaces that label, not a hardcoded one', () => {
+    const once = closeReminder(GITEA, {
+      status: 'done',
+      date: '2026-09-06',
+      note: 'First.',
+      label: 'Resolved',
+    })
+    if (typeof once !== 'string') throw new Error('refused')
+
+    const twice = closeReminder(once, {
+      status: 'done',
+      date: '2026-09-07',
+      note: 'Corrected.',
+      label: 'Resolved',
+    })
+    if (typeof twice !== 'string') throw new Error('refused')
+
+    expect(twice.split('\n').filter((l) => l.startsWith('**Resolved:')).length).toBe(1)
+    expect(twice).toContain('**Resolved:** 2026-09-07 — Corrected.')
+  })
+
+  test('refuses an empty label rather than writing ****:**', () => {
+    const result = closeReminder(GITEA, {
+      status: 'done',
+      date: '2026-09-06',
+      note: 'x',
+      label: '  ',
+    })
+
+    expect(typeof result).not.toBe('string')
+    expect(typeof result === 'string' ? '' : result.refused).toMatch(/label/i)
   })
 
   test('preserves CRLF files, because this runs on Windows', () => {
