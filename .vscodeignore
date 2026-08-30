@@ -3,5 +3,7 @@ src/**
 node_modules/**
 tsconfig.json
 esbuild.js
+test-extension.sh
 **/*.test.ts
+**/*.map
 src/__fixtures__/**
