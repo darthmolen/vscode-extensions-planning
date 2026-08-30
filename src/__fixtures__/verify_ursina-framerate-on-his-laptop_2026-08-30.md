@@ -9,7 +9,7 @@
 
 ## What to do
 
-Run the shim's 5,000-block scene on **his** the son's laptop and record the framerate. The plan's
+Run the shim's 5,000-block scene on **his** laptop and record the framerate. The plan's
 criterion is **≥ 60 fps at 5,000 blocks**, measured and recorded rather than assumed, and the
 number goes in the plan next to the criterion.
 

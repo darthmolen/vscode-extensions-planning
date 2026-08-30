@@ -9,7 +9,7 @@
 
 ## What to do
 
-Import `tools/vscode/pyquest-area2.code-profile` on **his** the son's laptop and confirm the five
+Import `tools/vscode/pyquest-area2.code-profile` on **his** laptop and confirm the five
 rungs of the ladder actually behave: the activity bar, the minimap, breadcrumbs, and the two
 settings the profile turns off. Then open one Area 2 exercise in it and check it is usable
 rather than merely installed.

@@ -35,7 +35,7 @@ on a hunch after the turtle worked.
 ## Why it cannot be a test
 
 Nothing here is a defect. The code works either way; what is at stake is whether a
-11-14-year-old learns that the tool he is using has a history and a joke hidden in it. A test
+11–14-year-old learns that the tool he is using has a history and a joke hidden in it. A test
 can assert `shape("dragon")` resolves — one does — but it cannot notice that nobody ever told
 him.
 

@@ -9,7 +9,7 @@
 
 ## What to do
 
-On **his** the son's laptop, in **his** browser, at its native 1366×768 — not a devtools viewport
+On **his** laptop, in **his** browser, at its native 1366×768 — not a devtools viewport
 on the parent's machine — open all nine screens and look at them:
 
 `/map` · `/tome` · `/defend` · `/party` · `/journal` · `/console` ·
@@ -31,7 +31,7 @@ first: the **72px rail** with its six labels, and the **46px breadcrumb bar**.
 Nothing in the suite has his screen. The tests run in jsdom, which has no layout at all — no
 font metrics, no wrapping, no overflow. A devtools viewport at 1366×768 has his *resolution* and
 none of his **font rendering, OS scaling, or browser**, and the difference between those is
-precisely what "legible to an 11-14-year-old" turns on.
+precisely what "legible to an 11–14-year-old" turns on.
 
 This criterion has been in the plan since it was written and no run of anything will ever fail
 because of it. That is the whole reason this file exists.
