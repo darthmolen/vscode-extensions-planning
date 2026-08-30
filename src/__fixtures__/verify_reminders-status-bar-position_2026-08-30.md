@@ -5,7 +5,8 @@
 **Subject:** tooling
 **Raised:** 2026-08-30
 **Plan:** `planning/**/feature_reminders-vscode-extension_2026-08-30.md`
-**Status:** open
+**Status:** done
+**Closed:** 2026-08-30 — Installed the packaged vsix and reloaded: the count reads 6 and lands immediately right of Problems, amber because two are learner. Tooltip groups by subject with no filenames. The priority-51 jump was not tried.
 
 ## What to do
 
