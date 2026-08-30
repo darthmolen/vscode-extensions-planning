@@ -9,8 +9,71 @@
   "engines": {
     "vscode": "^1.80.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "reminders.show",
+        "title": "Reminders: Show Open Reminders"
+      },
+      {
+        "command": "reminders.refresh",
+        "title": "Reminders: Refresh"
+      }
+    ],
+    "configuration": {
+      "title": "Reminders",
+      "properties": {
+        "reminders.directory": {
+          "type": "string",
+          "default": "planning/reminders",
+          "markdownDescription": "Directory holding the reminder files, **relative to the workspace root**. Absolute paths are not supported in v1."
+        },
+        "reminders.groupBy": {
+          "type": "string",
+          "enum": [
+            "subject",
+            "audience",
+            "category",
+            "flat"
+          ],
+          "default": "subject",
+          "description": "Which field groups the list."
+        },
+        "reminders.openStatus": {
+          "type": "string",
+          "default": "open",
+          "markdownDescription": "The `**Status:**` value that counts as outstanding. The vocabulary belongs to the skill, not to this extension."
+        },
+        "reminders.warnOnAudience": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "learner"
+          ],
+          "markdownDescription": "Audiences that turn the status bar amber. A reminder addressed to the learner happens during a session, in their time, and competes with the teaching."
+        },
+        "reminders.statusBarPriority": {
+          "type": "number",
+          "default": 49,
+          "markdownDescription": "Status bar priority. Higher is further left. VS Code registers Problems at 50, so 49 sits just right of it — observed, not contracted, which is why this is a setting."
+        },
+        "reminders.closedLabel": {
+          "type": "string",
+          "default": "Closed",
+          "markdownDescription": "The bold label written beneath `**Status:**` when a reminder is closed. Must match whatever `SKILL.md` specifies."
+        }
+      }
+    }
+  },
   "scripts": {
     "compile": "npm run check-types && node esbuild.js",
     "check-types": "tsc --noEmit",
