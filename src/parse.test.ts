@@ -149,12 +149,101 @@ describe('the reminders this repository actually has', () => {
     expect([...result.fields.keys()].filter((k) => !documented.includes(k))).toEqual([])
   })
 
-  test.each(names)('%s has a plan glob with no backticks left on it', (name) => {
+  test.each(names)('%s reaches its plan by name, not by path', (name) => {
     const result = parseReminder(readFixture(name))
     if (!isReminder(result)) throw new Error(`${name} did not parse: ${result.reason}`)
 
+    // A reference names a document and says nothing about where it lives, so it
+    // survives the plan moving between board columns — which is the normal life
+    // of a plan and the reason a stored path used to rot.
     expect(result.plan).toBeDefined()
     expect(result.plan).not.toContain('`')
-    expect(result.plan).toMatch(/^planning\//)
+    expect(result.plan).not.toContain('/')
+    expect(result.plan).toMatch(/^[a-z0-9-]+.*_\d{4}-\d{2}-\d{2}/)
+  })
+
+  test.each(names)('%s keeps its metadata in frontmatter only', (name) => {
+    // The migration's whole point: one copy of each fact. A file carrying both
+    // `status:` and `**Status:**` is the drift the corpus went through this to
+    // stop, and the fixtures are copies of the real thing.
+    const text = readFixture(name)
+
+    expect(text.startsWith('---\n') || text.startsWith('---\r\n')).toBe(true)
+    for (const label of ['Category', 'Audience', 'Subject', 'Raised', 'Plan', 'Status']) {
+      expect(text).not.toContain(`**${label}:**`)
+    }
+  })
+})
+
+describe('frontmatter is the source of truth', () => {
+  const FRONT = [
+    '---',
+    'kind: reminder',
+    'status: open',
+    'category: verify',
+    'audience: learner',
+    'subject: hardware',
+    'date: 2026-08-30',
+    'plan: world-shim_2026-08-28',
+    '---',
+    '',
+    '# Measure the framerate',
+    '',
+    '## What to do',
+    '',
+    'Run the scene and write the number down.',
+    '',
+  ].join('\n')
+
+  test('reads every field out of the block', () => {
+    const result = parseReminder(FRONT)
+    if (!isReminder(result)) throw new Error(`did not parse: ${result.reason}`)
+
+    expect(result.title).toBe('Measure the framerate')
+    expect(result.category).toBe('verify')
+    expect(result.audience).toBe('learner')
+    expect(result.subject).toBe('hardware')
+    expect(result.raised).toBe('2026-08-30')
+    expect(result.plan).toBe('world-shim_2026-08-28')
+    expect(result.status).toBe('open')
+    expect(result.summary).toBe('Run the scene and write the number down.')
+  })
+
+  test('wins over a bold label that disagrees, because it is the checked copy', () => {
+    const both = FRONT.replace('# Measure the framerate\n', '# Measure the framerate\n\n**Status:** done\n')
+    const result = parseReminder(both)
+    if (!isReminder(result)) throw new Error(`did not parse: ${result.reason}`)
+
+    expect(result.status).toBe('open')
+  })
+
+  test('does not read the frontmatter fence as the title', () => {
+    const result = parseReminder(FRONT)
+
+    expect(isReminder(result) && result.title).toBe('Measure the framerate')
+  })
+
+  test('a file with frontmatter but no status is malformed', () => {
+    const noStatus = FRONT.replace('status: open\n', '')
+    const result = parseReminder(noStatus)
+
+    expect(isReminder(result)).toBe(false)
+    expect(isReminder(result) ? '' : result.reason).toMatch(/status/i)
+  })
+
+  test('an unterminated block is not frontmatter, and the file still parses on its labels', () => {
+    const broken = ['---', 'kind: reminder', '', '# Title', '', '**Status:** open', ''].join('\n')
+    const result = parseReminder(broken)
+
+    expect(isReminder(result)).toBe(true)
+    expect(isReminder(result) && result.status).toBe('open')
+  })
+
+  test('survives CRLF, because this repository is on Windows', () => {
+    const result = parseReminder(FRONT.replace(/\n/g, '\r\n'))
+    if (!isReminder(result)) throw new Error(`did not parse: ${result.reason}`)
+
+    expect(result.status).toBe('open')
+    expect(result.plan).toBe('world-shim_2026-08-28')
   })
 })

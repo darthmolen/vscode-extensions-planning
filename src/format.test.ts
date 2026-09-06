@@ -10,17 +10,45 @@ import { isReminder, parseReminder } from './parse.ts'
  * says, so the bytes differ between a clone and a worktree on the same machine —
  * which is how this normalisation got added. The CRLF behaviour has its own test
  * below, which builds its input explicitly rather than trusting the checkout.
+ *
+ * **An OPEN reminder, deliberately.** Closing a file that is already closed
+ * cannot tell "set the status" apart from "left it as it was", and every
+ * fixture in `completed/` carries a `**Closed:**` line that a re-close would be
+ * interacting with rather than the test's own.
  */
-const GITEA = readFileSync(
+const OPEN = readFileSync(
   join(
     import.meta.dirname,
     '__fixtures__',
-    'follow-up_gitea-reachable-from-his-laptop_2026-08-30.md',
+    'follow-up_turtle-and-dragon-easter-egg_2026-08-30.md',
   ),
   'utf8',
 ).replace(/\r\n/g, '\n')
 
-const closed = (text: string, note = 'Pushed from his laptop over the LAN.') => {
+/**
+ * The pre-frontmatter shape, kept as a literal.
+ *
+ * The corpus migrated on 2026-09-05 and no fixture carries this any more, which
+ * is exactly why it is written out here: the fallback path in `closeReminder` is
+ * for files written by hand or restored from an older branch, and a fallback
+ * with no test is a fallback nobody knows is broken.
+ */
+const LEGACY = [
+  "# Make Gitea reachable from the son's laptop",
+  '',
+  '**Category:** follow-up',
+  '**Audience:** dm',
+  '**Subject:** hardware',
+  '**Raised:** 2026-08-30',
+  '**Status:** open',
+  '',
+  '## What to do',
+  '',
+  'Prove it with a throwaway repository and a real commit.',
+  '',
+].join('\n')
+
+const closed = (text: string, note = 'He found the dragon in about four minutes.') => {
   const result = closeReminder(text, { status: 'done', date: '2026-09-06', note, label: 'Closed' })
   if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
   return result
@@ -46,82 +74,92 @@ describe('localDate', () => {
   })
 })
 
-describe('closeReminder', () => {
-  test('sets the status to done', () => {
-    const after = closed(GITEA)
+describe('closeReminder writes the field a validator reads', () => {
+  test('sets the frontmatter status, which is the checked copy', () => {
+    const after = closed(OPEN)
 
-    expect(after).toContain('**Status:** done')
-    expect(after).not.toContain('**Status:** open')
+    expect(after).toContain('status: done')
+    expect(after).not.toContain('status: open')
   })
 
-  test('writes the Closed line directly beneath Status, as SKILL.md specifies', () => {
-    const after = closed(GITEA, 'The key was never installed.')
-    const lines = after.split('\n')
-    const statusAt = lines.findIndex((l) => l.startsWith('**Status:**'))
+  test('the frontmatter status is what makes the board agree', () => {
+    // The bug this test exists for: writing only the bold label would leave
+    // `status: open` in the block `validate:plans` reads, so a closed reminder
+    // would go on being reported as outstanding until the next validation run.
+    const after = closed(OPEN)
+    const front = after.split('\n').slice(0, after.split('\n').indexOf('---', 1))
 
-    expect(statusAt).toBeGreaterThan(-1)
-    expect(lines[statusAt + 1]).toBe(
-      '**Closed:** 2026-09-06 — The key was never installed.',
+    expect(front).toContain('status: done')
+  })
+
+  test('rewrites status only inside the frontmatter, never prose that looks like it', () => {
+    const withProse = OPEN.replace(
+      '## What to do',
+      '## What to do\n\nstatus: this line is prose and must survive\n',
     )
+    const after = closed(withProse)
+
+    expect(after).toContain('status: this line is prose and must survive')
+    expect(after.split('\n').filter((l) => l === 'status: done')).toHaveLength(1)
   })
 
-  test('changes exactly one line and adds exactly one', () => {
-    const before = GITEA.split('\n')
-    const after = closed(GITEA).split('\n')
+  test('writes the Closed line under the H1, where the answer is looked for', () => {
+    const after = closed(OPEN, 'He found the dragon.')
+    const lines = after.split('\n')
+    const titleAt = lines.findIndex((l) => l.startsWith('# '))
 
-    expect(after.length).toBe(before.length + 1)
+    expect(titleAt).toBeGreaterThan(-1)
+    expect(lines[titleAt + 1]).toBe('')
+    expect(lines[titleAt + 2]).toBe('**Closed:** 2026-09-06 — He found the dragon.')
+  })
 
-    // Compare with the inserted line removed, so the shift does not read as change.
+  test('changes one line and adds two — the note and the blank above it', () => {
+    const before = OPEN.split('\n')
+    const after = closed(OPEN).split('\n')
+
+    expect(after.length).toBe(before.length + 2)
+
+    // Compare with the insertion removed, so the shift does not read as change.
     const withoutInsert = after.filter((l) => !l.startsWith('**Closed:'))
+    withoutInsert.splice(withoutInsert.findIndex((l) => l.startsWith('# ')) + 1, 1)
     const differing = withoutInsert.filter((line, i) => line !== before[i])
 
-    expect(differing).toEqual(['**Status:** done'])
+    expect(differing).toEqual(['status: done'])
   })
 
   test('leaves the prose completely alone', () => {
-    const after = closed(GITEA)
+    const after = closed(OPEN)
 
     expect(after).toContain('## Why it cannot be a test')
-    expect(after).toContain('**Works:** two API verifiers unblock')
-    expect(after).toContain('`infra/smoke.sh` already creates a repository')
+    expect(after).toContain('**And the dragon is in there.**')
+    expect(after).toContain('## Why the dragon is legal at all')
   })
 
   test('the result parses, and parses as closed', () => {
-    const after = closed(GITEA, 'Done on the LAN.')
+    const after = closed(OPEN, 'Done in the kitchen.')
     const result = parseReminder(after)
     if (!isReminder(result)) throw new Error(`did not re-parse: ${result.reason}`)
 
     expect(result.status).toBe('done')
-    expect(result.fields.get('Closed')).toBe('2026-09-06 — Done on the LAN.')
-    expect(result.title).toBe(
-      "Make Gitea reachable from the son's laptop, and push to it from there",
-    )
-  })
-
-  test('refuses an empty note, because the note is the point of keeping the file', () => {
-    const result = closeReminder(GITEA, { status: 'done', date: '2026-09-06', note: '   ', label: 'Closed' })
-
-    expect(typeof result).not.toBe('string')
-    expect(typeof result === 'string' ? '' : result.refused).toMatch(/note/i)
+    expect(result.fields.get('Closed')).toBe('2026-09-06 — Done in the kitchen.')
+    expect(result.title).toBe('Tell him the turtle was a robot, and let him find the dragon')
   })
 
   test('drops take the same path and record the reason', () => {
-    const result = closeReminder(GITEA, {
+    const result = closeReminder(OPEN, {
       status: 'dropped',
       date: '2026-09-06',
-      note: 'The laptop was replaced; this no longer applies.',
+      note: 'He worked it out on his own.',
       label: 'Closed',
     })
     if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
 
-    expect(result).toContain('**Status:** dropped')
-    expect(result).toContain(
-      '**Closed:** 2026-09-06 — The laptop was replaced; this no longer applies.',
-    )
+    expect(result).toContain('status: dropped')
+    expect(result).toContain('**Closed:** 2026-09-06 — He worked it out on his own.')
   })
 
   test('re-closing replaces the existing Closed line rather than stacking a second', () => {
-    const once = closed(GITEA, 'First answer.')
+    const once = closed(OPEN, 'First answer.')
     const twice = closed(once, 'Corrected answer.')
 
     const count = twice.split('\n').filter((l) => l.startsWith('**Closed:')).length
@@ -129,7 +167,61 @@ describe('closeReminder', () => {
     expect(twice).toContain('**Closed:** 2026-09-06 — Corrected answer.')
   })
 
-  test('refuses a file it cannot find a Status line in', () => {
+  test('preserves CRLF files, because this runs on Windows', () => {
+    const crlf = OPEN.replace(/\n/g, '\r\n')
+    const after = closed(crlf)
+
+    expect(after).toContain('status: done\r\n')
+    expect(after).toContain('\r\n**Closed:** 2026-09-06 —')
+    expect(after.split('\n').every((l, i, a) => i === a.length - 1 || l.endsWith('\r'))).toBe(
+      true,
+    )
+  })
+})
+
+describe('the pre-frontmatter shape still closes', () => {
+  test('sets the bold Status label when that is all the file has', () => {
+    const after = closed(LEGACY)
+
+    expect(after).toContain('**Status:** done')
+    expect(after).not.toContain('**Status:** open')
+  })
+
+  test('keeps the note beside Status, so the metadata block stays one block', () => {
+    const after = closed(LEGACY, 'The key was never installed.')
+    const lines = after.split('\n')
+    const statusAt = lines.findIndex((l) => l.startsWith('**Status:**'))
+
+    expect(lines[statusAt + 1]).toBe('**Closed:** 2026-09-06 — The key was never installed.')
+  })
+
+  test('a file carrying both shapes gets both rewritten, so neither drifts', () => {
+    const both = ['---', 'kind: reminder', 'status: open', '---', '', ...LEGACY.split('\n')].join(
+      '\n',
+    )
+    const after = closed(both)
+
+    expect(after).toContain('status: done')
+    expect(after).toContain('**Status:** done')
+    expect(after).not.toContain('status: open')
+    expect(after).not.toContain('**Status:** open')
+  })
+})
+
+describe('closeReminder refuses rather than half-succeeding', () => {
+  test('refuses an empty note, because the note is the point of keeping the file', () => {
+    const result = closeReminder(OPEN, {
+      status: 'done',
+      date: '2026-09-06',
+      note: '   ',
+      label: 'Closed',
+    })
+
+    expect(typeof result).not.toBe('string')
+    expect(typeof result === 'string' ? '' : result.refused).toMatch(/note/i)
+  })
+
+  test('refuses a file with no status of either shape', () => {
     const result = closeReminder('# No metadata here\n\nJust prose.\n', {
       status: 'done',
       date: '2026-09-06',
@@ -138,11 +230,11 @@ describe('closeReminder', () => {
     })
 
     expect(typeof result).not.toBe('string')
-    expect(typeof result === 'string' ? '' : result.refused).toMatch(/Status/)
+    expect(typeof result === 'string' ? '' : result.refused).toMatch(/status/i)
   })
 
   test('honours a configured label, so reminders.closedLabel is not decorative', () => {
-    const result = closeReminder(GITEA, {
+    const result = closeReminder(OPEN, {
       status: 'done',
       date: '2026-09-06',
       note: 'Answered.',
@@ -155,7 +247,7 @@ describe('closeReminder', () => {
   })
 
   test('re-closing under a configured label replaces that label, not a hardcoded one', () => {
-    const once = closeReminder(GITEA, {
+    const once = closeReminder(OPEN, {
       status: 'done',
       date: '2026-09-06',
       note: 'First.',
@@ -176,7 +268,7 @@ describe('closeReminder', () => {
   })
 
   test('refuses an empty label rather than writing ****:**', () => {
-    const result = closeReminder(GITEA, {
+    const result = closeReminder(OPEN, {
       status: 'done',
       date: '2026-09-06',
       note: 'x',
@@ -185,15 +277,5 @@ describe('closeReminder', () => {
 
     expect(typeof result).not.toBe('string')
     expect(typeof result === 'string' ? '' : result.refused).toMatch(/label/i)
-  })
-
-  test('preserves CRLF files, because this runs on Windows', () => {
-    const crlf = GITEA.replace(/\n/g, '\r\n')
-    const after = closed(crlf)
-
-    expect(after).toContain('**Status:** done\r\n**Closed:** 2026-09-06 —')
-    expect(after.split('\n').every((l, i, a) => i === a.length - 1 || l.endsWith('\r'))).toBe(
-      true,
-    )
   })
 })

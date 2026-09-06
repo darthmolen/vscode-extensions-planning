@@ -1,11 +1,16 @@
+---
+kind: reminder
+status: done
+category: follow-up
+audience: dm
+subject: hardware
+date: 2026-08-30
+plan: area-2-scribes-rite-and-sandbox_2026-08-28
+---
+
 # Install and verify the Area 2 VS Code profile on the son's laptop
 
-**Category:** follow-up
-**Audience:** dm
-**Subject:** hardware
-**Raised:** 2026-08-30
-**Plan:** `planning/**/feature_area-2-scribes-rite-and-sandbox_2026-08-28.md`
-**Status:** open
+**Closed:** 2026-08-31 — import was only through ui but it worked, kinda. no widgets on the side but a terminal bottom and files were showing. much simpler
 
 ## What to do
 

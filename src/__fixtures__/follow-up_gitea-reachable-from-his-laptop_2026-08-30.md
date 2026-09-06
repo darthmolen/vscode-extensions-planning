@@ -1,11 +1,16 @@
+---
+kind: reminder
+status: done
+category: follow-up
+audience: dm
+subject: hardware
+date: 2026-08-30
+plan: gitea-lan-access-for-the-son_2026-08-27
+---
+
 # Make Gitea reachable from the son's laptop, and push to it from there
 
-**Category:** follow-up
-**Audience:** dm
-**Subject:** hardware
-**Raised:** 2026-08-30
-**Plan:** `planning/**/feature_gitea-lan-access-for-the-son_2026-08-27.md`
-**Status:** open
+**Closed:** 2026-08-31 — after an hour setup, we finally got it to work and I made claude write a setup package
 
 ## What to do
 

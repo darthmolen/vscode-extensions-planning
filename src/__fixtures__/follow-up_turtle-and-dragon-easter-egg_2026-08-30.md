@@ -1,11 +1,14 @@
-# Tell him the turtle was a robot, and let him find the dragon
+---
+kind: reminder
+status: open
+category: follow-up
+audience: learner
+subject: curriculum
+date: 2026-08-30
+plan: spa_2026-08-28-v2
+---
 
-**Category:** follow-up
-**Audience:** learner
-**Subject:** curriculum
-**Raised:** 2026-08-30
-**Plan:** `planning/**/feature_spa_2026-08-28-v2.md`
-**Status:** open
+# Tell him the turtle was a robot, and let him find the dragon
 
 ## What to do
 

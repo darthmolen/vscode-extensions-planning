@@ -22,7 +22,12 @@ PUBLISHER=$(node -p "require('./package.json').publisher")
 VSIX="$NAME-$VERSION.vsix"
 ID="$PUBLISHER.$NAME"
 
-[ -d node_modules ] || { echo "📦 Installing dependencies..."; npm install --silent; }
+# Guarded on the binary this script is about to run, not on the directory. A
+# `node_modules/` that exists but is empty -- an interrupted install, or a fresh
+# worktree -- passed the directory check and then died on "./node_modules/.bin/tsc:
+# No such file or directory", which reads like a broken script rather than a
+# missing install.
+[ -x node_modules/.bin/tsc ] || { echo "📦 Installing dependencies..."; npm install --silent; }
 
 echo "🔍 Typechecking..."
 ./node_modules/.bin/tsc --noEmit

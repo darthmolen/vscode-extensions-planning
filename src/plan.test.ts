@@ -1,8 +1,53 @@
 import { describe, expect, test } from 'vitest'
 
-import { choosePlanPath, planPattern, safeDirectory } from './plan.ts'
+import { choosePlanPath, identity, isName, planPattern, safeDirectory } from './plan.ts'
+
+describe('identity — a document is its name, and the directory is its status', () => {
+  test('strips the prefix that changes with status', () => {
+    expect(identity('planning/backlog/promoted_seed-a-test-household_2026-08-30.md')).toBe(
+      'seed-a-test-household_2026-08-30',
+    )
+    expect(identity('planning/completed/feature_world-shim_2026-08-28.md')).toBe(
+      'world-shim_2026-08-28',
+    )
+  })
+
+  test('keeps a reminder category, which is not a status', () => {
+    expect(identity('planning/reminders/verify_boss-2-cold-clone_2026-09-01.md')).toBe(
+      'verify_boss-2-cold-clone_2026-09-01',
+    )
+  })
+
+  test('agrees with pyquest/scripts/plans.ts, or a checked reference opens nothing', () => {
+    // Both sides strip exactly `feature_`, `promoted_` and `closed_`. If they
+    // disagree, `validate:plans` calls a reference resolved and the button here
+    // reports no plan — the worst pairing, because nothing looks broken.
+    expect(identity('planning/feature_a_2026-09-03.md')).toBe(
+      identity('planning/backlog/promoted_a_2026-09-03.md'),
+    )
+  })
+})
+
+describe('isName', () => {
+  test('a name has no directory, no glob and no extension', () => {
+    expect(isName('world-shim_2026-08-28')).toBe(true)
+  })
+
+  test('a legacy glob is not a name', () => {
+    expect(isName('planning/**/feature_world-shim_2026-08-28.md')).toBe(false)
+    expect(isName('planning/completed/feature_world-shim_2026-08-28.md')).toBe(false)
+  })
+})
 
 describe('planPattern', () => {
+  test('a name globs the whole board, because a name says nothing about where', () => {
+    expect(planPattern('world-shim_2026-08-28')).toBe('planning/**/*.md')
+  })
+
+  test('strips backticks off a name too', () => {
+    expect(planPattern('`world-shim_2026-08-28`')).toBe('planning/**/*.md')
+  })
+
   test('passes the glob through — it is already a workspace-relative pattern', () => {
     expect(planPattern('planning/**/feature_world-shim_2026-08-28.md')).toBe(
       'planning/**/feature_world-shim_2026-08-28.md',
@@ -133,5 +178,54 @@ describe('choosePlanPath', () => {
 
     expect(forwards).toBe(backwards)
     expect(forwards).toBe('planning/completed/feature_a_2026-08-01.md')
+  })
+})
+
+describe('choosePlanPath narrows by name before ranking the board', () => {
+  const BOARD = [
+    'planning/backlog/promoted_seed-a-test-household_2026-08-30.md',
+    'planning/completed/feature_seed-a-test-household_2026-08-31.md',
+    'planning/completed/feature_world-shim_2026-08-28.md',
+    'planning/reminders/verify_boss-2-cold-clone_2026-09-01.md',
+  ]
+
+  test('picks the one document carrying the name', () => {
+    expect(choosePlanPath(BOARD, 'world-shim_2026-08-28')).toBe(
+      'planning/completed/feature_world-shim_2026-08-28.md',
+    )
+  })
+
+  test('a name nothing carries opens nothing, rather than the first file on the board', () => {
+    // The glob handed in is every planning document, so without the narrowing
+    // this would cheerfully open an unrelated plan.
+    expect(choosePlanPath(BOARD, 'a-plan-that-does-not-exist_2026-01-01')).toBeUndefined()
+  })
+
+  test('the plan wins over the stub it grew from, when both carry the name', () => {
+    const collision = [
+      'planning/backlog/promoted_a-submission_2026-09-03.md',
+      'planning/feature_a-submission_2026-09-03.md',
+    ]
+    expect(choosePlanPath(collision, 'a-submission_2026-09-03')).toBe(
+      'planning/feature_a-submission_2026-09-03.md',
+    )
+  })
+
+  test('a legacy glob reference still ranks the whole match set, as before', () => {
+    const matches = [
+      'planning/completed/feature_world-shim_2026-08-28.md',
+      'planning/in-progress/feature_world-shim_2026-08-28.md',
+    ]
+    expect(choosePlanPath(matches, 'planning/**/feature_world-shim_2026-08-28.md')).toBe(
+      'planning/in-progress/feature_world-shim_2026-08-28.md',
+    )
+  })
+
+  test('no reference at all falls back to ranking, so old callers still work', () => {
+    // Best board position among these is `completed/` (the backlog stub ranks
+    // below it), and the tie between the two completed plans breaks on path.
+    expect(choosePlanPath(BOARD)).toBe(
+      'planning/completed/feature_seed-a-test-household_2026-08-31.md',
+    )
   })
 })

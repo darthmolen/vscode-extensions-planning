@@ -50,12 +50,14 @@ export function activate(context: vscode.ExtensionContext): void {
     )
     const chosen = choosePlanPath(
       found.map((uri) => vscode.workspace.asRelativePath(uri, false)),
+      entry.reminder.plan,
     )
 
     if (chosen === undefined) {
-      // The glob is meant to survive a plan moving. If nothing matches, the plan
-      // is genuinely gone, and saying so beats opening the wrong file.
-      void vscode.window.showWarningMessage('No plan matches ' + pattern)
+      // A name is meant to survive a plan moving between board columns. If
+      // nothing carries it, the plan is genuinely gone, and saying so beats
+      // opening the wrong file.
+      void vscode.window.showWarningMessage('No plan named ' + entry.reminder.plan)
       return
     }
     await openPath(chosen)

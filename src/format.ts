@@ -39,12 +39,32 @@ export function localDate(now: Date = new Date()): string {
 }
 
 const STATUS_LINE = /^\*\*Status:\*\*/
+const FENCE = /^---\s*$/
+const FRONT_STATUS = /^status:\s*/
+const H1 = /^#\s+\S/
 
 const escapeForRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** The label is configurable, so the line that recognises it has to be built. */
 const closedLine = (label: string): RegExp =>
   new RegExp('^\\*\\*' + escapeForRegExp(label) + ':\\*\\*')
+
+/**
+ * The `status:` line inside the frontmatter block, or -1.
+ *
+ * Bounded by the closing fence on purpose. A body line beginning `status:` is
+ * prose, and rewriting it would corrupt the note while leaving the field that
+ * actually counts untouched — the failure would show up as a reminder that
+ * stayed open after being closed, which is the one bug this file must not have.
+ */
+function frontmatterStatus(lines: readonly string[]): number {
+  if (!FENCE.test(lines[0] ?? '')) return -1
+  const end = lines.findIndex((line, i) => i > 0 && FENCE.test(line))
+  if (end === -1) return -1
+
+  const at = lines.findIndex((line, i) => i > 0 && i < end && FRONT_STATUS.test(line))
+  return at
+}
 
 export function closeReminder(text: string, closure: Closure): string | Refused {
   const note = closure.note.trim()
@@ -68,17 +88,46 @@ export function closeReminder(text: string, closure: Closure): string | Refused 
   const existing = closedLine(closure.label)
   const withoutClosed = lines.filter((line) => !existing.test(line))
 
+  /**
+   * Frontmatter first, because that is the copy `validate:plans` checks.
+   *
+   * Writing only the bold label would leave `status: open` in the block a
+   * validator reads — the board would go on reporting a closed reminder as
+   * outstanding, and the next `npm run validate:plans` would be the thing that
+   * found out. A file carrying both gets both rewritten; neither is allowed to
+   * drift from the other.
+   */
+  const frontAt = frontmatterStatus(withoutClosed)
   const statusAt = withoutClosed.findIndex((line) => STATUS_LINE.test(line))
-  if (statusAt === -1) {
-    return { refused: 'no **Status:** line to close — this file is not a reminder' }
+
+  if (frontAt === -1 && statusAt === -1) {
+    return { refused: 'no status to close — this file has neither `status:` frontmatter nor a **Status:** line' }
   }
 
-  withoutClosed[statusAt] = `**Status:** ${closure.status}`
-  withoutClosed.splice(
-    statusAt + 1,
-    0,
-    `**${closure.label}:** ${closure.date} — ${note}`,
-  )
+  if (frontAt !== -1) withoutClosed[frontAt] = `status: ${closure.status}`
+  if (statusAt !== -1) withoutClosed[statusAt] = `**Status:** ${closure.status}`
 
+  const line = `**${closure.label}:** ${closure.date} — ${note}`
+
+  if (statusAt !== -1) {
+    // A file that still carries the bold labels: the note joins them, with no
+    // blank between, because they are one metadata block and splitting it would
+    // change more of the file than the closure is about.
+    withoutClosed.splice(statusAt + 1, 0, line)
+    return withoutClosed.join(eol)
+  }
+
+  /**
+   * A migrated file: the metadata lives in frontmatter and the body opens with
+   * the H1. The note goes directly under it, separated by a blank — where a
+   * reader looking for the answer finds it, and inside no section, so it belongs
+   * to the reminder rather than to whichever heading came first.
+   */
+  const titleAt = withoutClosed.findIndex((text, i) => i > frontAt && H1.test(text))
+  if (titleAt === -1) {
+    return { refused: 'no H1 title to write the note under — this file is not a reminder' }
+  }
+
+  withoutClosed.splice(titleAt + 1, 0, '', line)
   return withoutClosed.join(eol)
 }

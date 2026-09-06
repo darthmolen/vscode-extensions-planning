@@ -1,11 +1,16 @@
+---
+kind: reminder
+status: done
+category: follow-up
+audience: learner
+subject: screens
+date: 2026-08-30
+plan: spa_2026-08-28-v2
+---
+
 # Open all nine screens on the son's laptop at 1366×768
 
-**Category:** follow-up
-**Audience:** learner
-**Subject:** screens
-**Raised:** 2026-08-30
-**Plan:** `planning/**/feature_spa_2026-08-28-v2.md`
-**Status:** open
+**Closed:** 2026-08-31 — his screen is actually at 1920 x 1080 and looks fine.
 
 ## What to do
 
