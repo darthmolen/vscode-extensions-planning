@@ -162,7 +162,7 @@ export function readConfig(): Config {
     openStatus: c.get<string>('openStatus', 'open'),
     warnOnAudience: c.get<string[]>('warnOnAudience', ['learner']),
     groupBy: c.get<Config['groupBy']>('groupBy', 'subject'),
-    closedLabel: c.get<string>('closedLabel', 'Closed'),
+    closedField: c.get<string>('closedField', 'closed'),
   }
 }
 

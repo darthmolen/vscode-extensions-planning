@@ -1,6 +1,7 @@
 ---
 kind: reminder
 status: done
+closed: 2026-08-31 — the measures went really well. blew the minimums out of the water. claude is going to record results
 category: verify
 audience: dm
 subject: hardware
@@ -9,8 +10,6 @@ plan: world-shim_2026-08-28
 ---
 
 # Measure the Ursina framerate at 5,000 blocks on the son's laptop
-
-**Closed:** 2026-08-31 — the measures went really well. blew the minimums out of the water. claude is going to record results
 
 ## What to do
 

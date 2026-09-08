@@ -16,8 +16,8 @@ export interface Closure {
   readonly date: string
   /** What actually happened. Required: "done" alone is the one fact nobody needs. */
   readonly note: string
-  /** The bold label written beneath Status. The skill owns this word, not us. */
-  readonly label: string
+  /** The frontmatter field the closure is written to. The skill owns this word, not us. */
+  readonly field: string
 }
 
 /** A refusal, with the reason. Closing never half-succeeds. */
@@ -41,30 +41,48 @@ export function localDate(now: Date = new Date()): string {
 const STATUS_LINE = /^\*\*Status:\*\*/
 const FENCE = /^---\s*$/
 const FRONT_STATUS = /^status:\s*/
-const H1 = /^#\s+\S/
 
 const escapeForRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-/** The label is configurable, so the line that recognises it has to be built. */
-const closedLine = (label: string): RegExp =>
-  new RegExp('^\\*\\*' + escapeForRegExp(label) + ':\\*\\*')
+/** The field is configurable, so the lines that recognise it have to be built. */
+const frontField = (field: string): RegExp =>
+  new RegExp('^' + escapeForRegExp(field) + ':\\s*', 'i')
 
 /**
- * The `status:` line inside the frontmatter block, or -1.
+ * The body line earlier versions wrote, before the contract moved the closure
+ * into the frontmatter.
  *
- * Bounded by the closing fence on purpose. A body line beginning `status:` is
- * prose, and rewriting it would corrupt the note while leaving the field that
- * actually counts untouched — the failure would show up as a reminder that
- * stayed open after being closed, which is the one bug this file must not have.
+ * Case-insensitive on purpose. The old spelling was `**Closed:**` and the field
+ * is `closed`, so an exact match would miss every file written before the move —
+ * and missing it is not harmless. The frontmatter field would be added while the
+ * bold line stayed, leaving two copies of one fact and no way to tell which one
+ * is current. That is precisely the drift the frontmatter rule exists to end.
  */
-function frontmatterStatus(lines: readonly string[]): number {
-  if (!FENCE.test(lines[0] ?? '')) return -1
-  const end = lines.findIndex((line, i) => i > 0 && FENCE.test(line))
-  if (end === -1) return -1
+const legacyClosedLine = (field: string): RegExp =>
+  new RegExp('^\\*\\*' + escapeForRegExp(field) + ':\\*\\*', 'i')
 
-  const at = lines.findIndex((line, i) => i > 0 && i < end && FRONT_STATUS.test(line))
-  return at
+/**
+ * Where the frontmatter block's fields live: `[first, end)`, or undefined when
+ * the file has no block.
+ *
+ * Every lookup below is bounded by the closing fence on purpose. A body line
+ * beginning `status:` or `closed:` is prose, and rewriting it would corrupt the
+ * note while leaving the field that actually counts untouched — the failure
+ * would show up as a reminder that stayed open after being closed, which is the
+ * one bug this file must not have.
+ */
+function frontmatter(lines: readonly string[]): { first: number; end: number } | undefined {
+  if (!FENCE.test(lines[0] ?? '')) return undefined
+  const end = lines.findIndex((line, i) => i > 0 && FENCE.test(line))
+  return end === -1 ? undefined : { first: 1, end }
 }
+
+/** The first line inside `block` matching `pattern`, or -1. */
+const inBlock = (
+  lines: readonly string[],
+  block: { first: number; end: number },
+  pattern: RegExp,
+): number => lines.findIndex((line, i) => i >= block.first && i < block.end && pattern.test(line))
 
 export function closeReminder(text: string, closure: Closure): string | Refused {
   const note = closure.note.trim()
@@ -75,8 +93,8 @@ export function closeReminder(text: string, closure: Closure): string | Refused 
     }
   }
 
-  if (closure.label.trim() === '') {
-    return { refused: 'no closed label configured — reminders.closedLabel is empty' }
+  if (closure.field.trim() === '') {
+    return { refused: 'no closed field configured — reminders.closedField is empty' }
   }
 
   // Windows writes CRLF and this runs on Windows. Rejoin with whatever came in,
@@ -84,50 +102,68 @@ export function closeReminder(text: string, closure: Closure): string | Refused 
   const eol = text.includes('\r\n') ? '\r\n' : '\n'
   const lines = text.split(/\r?\n/)
 
-  // Drop any existing closed line first, so re-closing corrects rather than stacks.
-  const existing = closedLine(closure.label)
-  const withoutClosed = lines.filter((line) => !existing.test(line))
-
   /**
-   * Frontmatter first, because that is the copy `validate:plans` checks.
+   * Drop any body-level closed line first.
    *
-   * Writing only the bold label would leave `status: open` in the block a
-   * validator reads — the board would go on reporting a closed reminder as
-   * outstanding, and the next `npm run validate:plans` would be the thing that
-   * found out. A file carrying both gets both rewritten; neither is allowed to
-   * drift from the other.
+   * This does two jobs at once: re-closing corrects rather than stacks, and a
+   * file written under the old contract sheds its `**Closed:**` line as the
+   * frontmatter field takes over. The body's prose is untouched either way —
+   * what goes is the previous location of the answer, never the question.
    */
-  const frontAt = frontmatterStatus(withoutClosed)
-  const statusAt = withoutClosed.findIndex((line) => STATUS_LINE.test(line))
+  const legacy = legacyClosedLine(closure.field)
+  const out = [...lines]
+  for (let i = out.length - 1; i >= 0; i--) {
+    if (!legacy.test(out[i] ?? '')) continue
+    out.splice(i, 1)
+
+    // The line usually sat between two blanks. Removing it alone would leave the
+    // pair touching — a doubled blank that renders identically and shows up in
+    // every migrated file's diff as a change the closure was not about.
+    if ((out[i - 1] ?? '').trim() === '' && (out[i] ?? '').trim() === '') out.splice(i, 1)
+  }
+
+  const block = frontmatter(out)
+  const frontAt = block === undefined ? -1 : inBlock(out, block, FRONT_STATUS)
+  const statusAt = out.findIndex((line) => STATUS_LINE.test(line))
 
   if (frontAt === -1 && statusAt === -1) {
     return { refused: 'no status to close — this file has neither `status:` frontmatter nor a **Status:** line' }
   }
 
-  if (frontAt !== -1) withoutClosed[frontAt] = `status: ${closure.status}`
-  if (statusAt !== -1) withoutClosed[statusAt] = `**Status:** ${closure.status}`
-
-  const line = `**${closure.label}:** ${closure.date} — ${note}`
-
+  /**
+   * The body first, because it sits below the frontmatter: editing it cannot
+   * move the lines the block edit is about to address, while the reverse is not
+   * true.
+   */
   if (statusAt !== -1) {
-    // A file that still carries the bold labels: the note joins them, with no
-    // blank between, because they are one metadata block and splitting it would
-    // change more of the file than the closure is about.
-    withoutClosed.splice(statusAt + 1, 0, line)
-    return withoutClosed.join(eol)
+    out[statusAt] = `**Status:** ${closure.status}`
+
+    // Only where there is no frontmatter to hold the field. A pre-migration file
+    // has nowhere else to keep this, and refusing would strand it unclosable.
+    if (block === undefined) {
+      out.splice(statusAt + 1, 0, `**${closure.field}:** ${closure.date} — ${note}`)
+    }
   }
 
   /**
-   * A migrated file: the metadata lives in frontmatter and the body opens with
-   * the H1. The note goes directly under it, separated by a blank — where a
-   * reader looking for the answer finds it, and inside no section, so it belongs
-   * to the reminder rather than to whichever heading came first.
+   * Then the frontmatter, because that is the copy `validate:plans` checks.
+   *
+   * Writing only the body would leave `status: open` in the block a validator
+   * reads — the board would go on reporting a closed reminder as outstanding,
+   * and the next `npm run validate:plans` would be the thing that found out. A
+   * file carrying both gets both rewritten; neither may drift from the other.
    */
-  const titleAt = withoutClosed.findIndex((text, i) => i > frontAt && H1.test(text))
-  if (titleAt === -1) {
-    return { refused: 'no H1 title to write the note under — this file is not a reminder' }
+  if (block !== undefined) {
+    if (frontAt !== -1) out[frontAt] = `status: ${closure.status}`
+
+    const record = `${closure.field}: ${closure.date} — ${note}`
+    const at = inBlock(out, block, frontField(closure.field))
+
+    // Directly under `status:`, which is where the contract shows it and where a
+    // reader looking for the answer to "is this done" already is.
+    if (at !== -1) out[at] = record
+    else out.splice(frontAt !== -1 ? frontAt + 1 : block.end, 0, record)
   }
 
-  withoutClosed.splice(titleAt + 1, 0, '', line)
-  return withoutClosed.join(eol)
+  return out.join(eol)
 }

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
 import { closeReminder, localDate } from './format.ts'
-import { isReminder, parseReminder } from './parse.ts'
+import { isReminder, parseReminder, readFrontmatter } from './parse.ts'
 
 /**
  * Normalised to LF on read. Git checks these out with whatever `core.autocrlf`
@@ -49,7 +49,7 @@ const LEGACY = [
 ].join('\n')
 
 const closed = (text: string, note = 'He found the dragon in about four minutes.') => {
-  const result = closeReminder(text, { status: 'done', date: '2026-09-06', note, label: 'Closed' })
+  const result = closeReminder(text, { status: 'done', date: '2026-09-06', note, field: 'closed' })
   if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
   return result
 }
@@ -107,25 +107,32 @@ describe('closeReminder writes the field a validator reads', () => {
     expect(after.split('\n').filter((l) => l === 'status: done')).toHaveLength(1)
   })
 
-  test('writes the Closed line under the H1, where the answer is looked for', () => {
+  test('writes the closure into the frontmatter, directly under status', () => {
     const after = closed(OPEN, 'He found the dragon.')
     const lines = after.split('\n')
-    const titleAt = lines.findIndex((l) => l.startsWith('# '))
+    const statusAt = lines.indexOf('status: done')
 
-    expect(titleAt).toBeGreaterThan(-1)
-    expect(lines[titleAt + 1]).toBe('')
-    expect(lines[titleAt + 2]).toBe('**Closed:** 2026-09-06 — He found the dragon.')
+    expect(statusAt).toBeGreaterThan(0)
+    expect(lines[statusAt + 1]).toBe('closed: 2026-09-06 — He found the dragon.')
   })
 
-  test('changes one line and adds two — the note and the blank above it', () => {
+  test('the closure lands inside the fences, not in the body', () => {
+    const after = closed(OPEN, 'He found the dragon.')
+    const { front } = readFrontmatter(after.split('\n'))
+
+    expect(front.get('closed')).toBe('2026-09-06 — He found the dragon.')
+    expect(after).not.toContain('**closed:**')
+    expect(after).not.toContain('**Closed:**')
+  })
+
+  test('changes one line and adds one — the closure, and nothing else', () => {
     const before = OPEN.split('\n')
     const after = closed(OPEN).split('\n')
 
-    expect(after.length).toBe(before.length + 2)
+    expect(after.length).toBe(before.length + 1)
 
     // Compare with the insertion removed, so the shift does not read as change.
-    const withoutInsert = after.filter((l) => !l.startsWith('**Closed:'))
-    withoutInsert.splice(withoutInsert.findIndex((l) => l.startsWith('# ')) + 1, 1)
+    const withoutInsert = after.filter((l) => !l.startsWith('closed:'))
     const differing = withoutInsert.filter((line, i) => line !== before[i])
 
     expect(differing).toEqual(['status: done'])
@@ -145,8 +152,14 @@ describe('closeReminder writes the field a validator reads', () => {
     if (!isReminder(result)) throw new Error(`did not re-parse: ${result.reason}`)
 
     expect(result.status).toBe('done')
-    expect(result.fields.get('Closed')).toBe('2026-09-06 — Done in the kitchen.')
     expect(result.title).toBe('Tell him the turtle was a robot, and let him find the dragon')
+
+    // The closure is frontmatter now, so it is not a body field any more. That
+    // is the migration, and a reader of `fields` must not still find it there.
+    expect(result.fields.get('Closed')).toBeUndefined()
+    expect(readFrontmatter(after.split('\n')).front.get('closed')).toBe(
+      '2026-09-06 — Done in the kitchen.',
+    )
   })
 
   test('drops take the same path and record the reason', () => {
@@ -154,21 +167,21 @@ describe('closeReminder writes the field a validator reads', () => {
       status: 'dropped',
       date: '2026-09-06',
       note: 'He worked it out on his own.',
-      label: 'Closed',
+      field: 'closed',
     })
     if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
 
     expect(result).toContain('status: dropped')
-    expect(result).toContain('**Closed:** 2026-09-06 — He worked it out on his own.')
+    expect(result).toContain('closed: 2026-09-06 — He worked it out on his own.')
   })
 
-  test('re-closing replaces the existing Closed line rather than stacking a second', () => {
+  test('re-closing replaces the existing closure rather than stacking a second', () => {
     const once = closed(OPEN, 'First answer.')
     const twice = closed(once, 'Corrected answer.')
 
-    const count = twice.split('\n').filter((l) => l.startsWith('**Closed:')).length
+    const count = twice.split('\n').filter((l) => l.startsWith('closed:')).length
     expect(count).toBe(1)
-    expect(twice).toContain('**Closed:** 2026-09-06 — Corrected answer.')
+    expect(twice).toContain('closed: 2026-09-06 — Corrected answer.')
   })
 
   test('preserves CRLF files, because this runs on Windows', () => {
@@ -176,7 +189,7 @@ describe('closeReminder writes the field a validator reads', () => {
     const after = closed(crlf)
 
     expect(after).toContain('status: done\r\n')
-    expect(after).toContain('\r\n**Closed:** 2026-09-06 —')
+    expect(after).toContain('\r\nclosed: 2026-09-06 —')
     expect(after.split('\n').every((l, i, a) => i === a.length - 1 || l.endsWith('\r'))).toBe(
       true,
     )
@@ -191,12 +204,14 @@ describe('the pre-frontmatter shape still closes', () => {
     expect(after).not.toContain('**Status:** open')
   })
 
-  test('keeps the note beside Status, so the metadata block stays one block', () => {
+  test('keeps the note beside Status, because there is no frontmatter to hold it', () => {
     const after = closed(LEGACY, 'The key was never installed.')
     const lines = after.split('\n')
     const statusAt = lines.findIndex((l) => l.startsWith('**Status:**'))
 
-    expect(lines[statusAt + 1]).toBe('**Closed:** 2026-09-06 — The key was never installed.')
+    // A pre-frontmatter file has nowhere else to put this. Refusing would strand
+    // it unclosable, so the closure stays where that file already keeps metadata.
+    expect(lines[statusAt + 1]).toBe('**closed:** 2026-09-06 — The key was never installed.')
   })
 
   test('a file carrying both shapes gets both rewritten, so neither drifts', () => {
@@ -209,6 +224,80 @@ describe('the pre-frontmatter shape still closes', () => {
     expect(after).toContain('**Status:** done')
     expect(after).not.toContain('status: open')
     expect(after).not.toContain('**Status:** open')
+
+    // Frontmatter exists, so the closure goes there and only there.
+    expect(after).toContain('closed: 2026-09-06 —')
+    expect(after).not.toContain('**closed:**')
+  })
+})
+
+describe('a file written under the old contract migrates on close', () => {
+  /**
+   * The corpus is full of these: frontmatter metadata, and the closure still in
+   * the body as `**Closed:**` from before the contract moved it. The capital is
+   * the trap — an exact match against the `closed` field misses it, and the file
+   * ends up carrying the answer twice with nothing to say which is current.
+   */
+  const OLD_SHAPE = [
+    '---',
+    'kind: reminder',
+    'status: done',
+    'category: follow-up',
+    'date: 2026-08-30',
+    '---',
+    '',
+    '# Make Gitea reachable from the laptop',
+    '',
+    '**Closed:** 2026-08-31 — an hour of setup, then it worked',
+    '',
+    '## What to do',
+    '',
+    'Prove it with a throwaway repository.',
+    '',
+  ].join('\n')
+
+  test('the old body line goes, and does not survive as a second copy', () => {
+    const after = closed(OLD_SHAPE, 'Re-answered properly.')
+
+    expect(after).not.toContain('**Closed:**')
+    expect(after).not.toContain('2026-08-31')
+    expect(after.split('\n').filter((l) => l.startsWith('closed:'))).toHaveLength(1)
+  })
+
+  test('the answer moves into the frontmatter, where the validator reads it', () => {
+    const after = closed(OLD_SHAPE, 'Re-answered properly.')
+    const { front } = readFrontmatter(after.split('\n'))
+
+    expect(front.get('closed')).toBe('2026-09-06 — Re-answered properly.')
+    expect(front.get('status')).toBe('done')
+  })
+
+  test('the body it was embedded in is otherwise untouched', () => {
+    const after = closed(OLD_SHAPE, 'Re-answered properly.')
+
+    expect(after).toContain('# Make Gitea reachable from the laptop')
+    expect(after).toContain('## What to do')
+    expect(after).toContain('Prove it with a throwaway repository.')
+  })
+
+  test('leaves no doubled blank where the old line stood', () => {
+    // The line sat between two blanks. Taking only the line would leave the pair
+    // touching, and every migrated file's diff would carry a whitespace scar the
+    // closure was never about.
+    const after = closed(OLD_SHAPE, 'Re-answered properly.').split('\n')
+
+    expect(after.some((l, i) => l === '' && after[i + 1] === '')).toBe(false)
+  })
+
+  test('the body loses exactly the old line and its blank, nothing more', () => {
+    const before = OLD_SHAPE.split('\n')
+    const after = closed(OLD_SHAPE, 'Re-answered properly.').split('\n')
+
+    // -2 for the old line and its orphaned blank, +1 for the frontmatter field.
+    expect(after.length).toBe(before.length - 1)
+
+    const survivors = before.filter((l) => !l.startsWith('**Closed:**') && l !== '')
+    for (const line of survivors) expect(after).toContain(line)
   })
 })
 
@@ -218,7 +307,7 @@ describe('closeReminder refuses rather than half-succeeding', () => {
       status: 'done',
       date: '2026-09-06',
       note: '   ',
-      label: 'Closed',
+      field: 'closed',
     })
 
     expect(typeof result).not.toBe('string')
@@ -230,32 +319,32 @@ describe('closeReminder refuses rather than half-succeeding', () => {
       status: 'done',
       date: '2026-09-06',
       note: 'x',
-      label: 'Closed',
+      field: 'closed',
     })
 
     expect(typeof result).not.toBe('string')
     expect(typeof result === 'string' ? '' : result.refused).toMatch(/status/i)
   })
 
-  test('honours a configured label, so reminders.closedLabel is not decorative', () => {
+  test('honours a configured field, so reminders.closedField is not decorative', () => {
     const result = closeReminder(OPEN, {
       status: 'done',
       date: '2026-09-06',
       note: 'Answered.',
-      label: 'Resolved',
+      field: 'resolved',
     })
     if (typeof result !== 'string') throw new Error(`refused: ${result.refused}`)
 
-    expect(result).toContain('**Resolved:** 2026-09-06 — Answered.')
-    expect(result).not.toContain('**Closed:**')
+    expect(result).toContain('resolved: 2026-09-06 — Answered.')
+    expect(result).not.toContain('closed:')
   })
 
-  test('re-closing under a configured label replaces that label, not a hardcoded one', () => {
+  test('re-closing under a configured field replaces that field, not a hardcoded one', () => {
     const once = closeReminder(OPEN, {
       status: 'done',
       date: '2026-09-06',
       note: 'First.',
-      label: 'Resolved',
+      field: 'resolved',
     })
     if (typeof once !== 'string') throw new Error('refused')
 
@@ -263,23 +352,23 @@ describe('closeReminder refuses rather than half-succeeding', () => {
       status: 'done',
       date: '2026-09-07',
       note: 'Corrected.',
-      label: 'Resolved',
+      field: 'resolved',
     })
     if (typeof twice !== 'string') throw new Error('refused')
 
-    expect(twice.split('\n').filter((l) => l.startsWith('**Resolved:')).length).toBe(1)
-    expect(twice).toContain('**Resolved:** 2026-09-07 — Corrected.')
+    expect(twice.split('\n').filter((l) => l.startsWith('resolved:')).length).toBe(1)
+    expect(twice).toContain('resolved: 2026-09-07 — Corrected.')
   })
 
-  test('refuses an empty label rather than writing ****:**', () => {
+  test('refuses an empty field rather than writing a nameless one', () => {
     const result = closeReminder(OPEN, {
       status: 'done',
       date: '2026-09-06',
       note: 'x',
-      label: '  ',
+      field: '  ',
     })
 
     expect(typeof result).not.toBe('string')
-    expect(typeof result === 'string' ? '' : result.refused).toMatch(/label/i)
+    expect(typeof result === 'string' ? '' : result.refused).toMatch(/field/i)
   })
 })

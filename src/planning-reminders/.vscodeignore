@@ -4,9 +4,11 @@
 # Sources — the bundle in dist/ is what runs
 src/**
 **/*.ts
+**/*.mts
 **/*.map
 esbuild.js
 tsconfig.json
+vitest.config.*
 
 # Dev tooling
 .vscode/**

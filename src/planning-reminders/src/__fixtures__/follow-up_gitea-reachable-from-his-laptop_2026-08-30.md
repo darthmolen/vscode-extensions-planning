@@ -1,6 +1,7 @@
 ---
 kind: reminder
 status: done
+closed: 2026-08-31 — after an hour setup, we finally got it to work and I made claude write a setup package
 category: follow-up
 audience: dm
 subject: hardware
@@ -9,8 +10,6 @@ plan: gitea-lan-access-for-the-son_2026-08-27
 ---
 
 # Make Gitea reachable from the son's laptop, and push to it from there
-
-**Closed:** 2026-08-31 — after an hour setup, we finally got it to work and I made claude write a setup package
 
 ## What to do
 

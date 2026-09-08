@@ -1,6 +1,7 @@
 ---
 kind: reminder
 status: done
+closed: 2026-08-31 — his screen is actually at 1920 x 1080 and looks fine.
 category: follow-up
 audience: learner
 subject: screens
@@ -9,8 +10,6 @@ plan: spa_2026-08-28-v2
 ---
 
 # Open all nine screens on the son's laptop at 1366×768
-
-**Closed:** 2026-08-31 — his screen is actually at 1920 x 1080 and looks fine.
 
 ## What to do
 
