@@ -8,3 +8,7 @@ dist/
 # Editor and OS noise
 .DS_Store
 Thumbs.db
+
+# The Marketplace PAT. Never committed — CI reads it from the VSCE_PAT secret,
+# which scripts/set-vsce-secret.sh populates from here without printing it.
+.env
