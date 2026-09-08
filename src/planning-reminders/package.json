@@ -1,6 +1,6 @@
 {
   "name": "planning-reminders",
-  "displayName": "Reminders",
+  "displayName": "Planning Reminders",
   "description": "Surfaces set-reminders markdown files as a status bar count, a quick pick, and a panel view.",
   "version": "0.2.0",
   "publisher": "darthmolen",
