@@ -9,7 +9,7 @@ directory.
 
 | Extension | Where | What it does |
 |---|---|---|
-| **Reminders** | [`src/planning-reminders/`](src/planning-reminders/) | Shows open `set-reminders` files as a count in the status bar, a quick pick, and a panel view — and closes them from the tick box |
+| **Planning Reminders** | [`src/planning-reminders/`](src/planning-reminders/) | Shows open `set-reminders` files as a count in the status bar, a quick pick, and a panel view — and closes them from the tick box |
 
 One directory per extension under `src/`, each a self-contained npm package with its own
 `package.json`, its own build and its own tests. The root stays free of any one extension's

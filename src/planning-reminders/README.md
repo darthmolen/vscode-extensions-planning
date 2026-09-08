@@ -1,4 +1,4 @@
-# Reminders
+# Planning Reminders
 
 [![Version](https://vsmarketplacebadges.dev/version/darthmolen.planning-reminders.svg)](https://marketplace.visualstudio.com/items?itemName=darthmolen.planning-reminders)
 [![Installs](https://vsmarketplacebadges.dev/installs/darthmolen.planning-reminders.svg)](https://marketplace.visualstudio.com/items?itemName=darthmolen.planning-reminders)
