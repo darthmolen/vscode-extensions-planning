@@ -61,8 +61,7 @@ npm run compile
 echo ""
 echo "📦 Packaging VSIX..."
 rm -f ./*.vsix
-npx @vscode/vsce package --no-git-tag-version --allow-star-activation --allow-missing-repository --skip-license 2>&1 \
-  | { grep -v "WARNING" || true; }
+npx vsce package --no-git-tag-version 2>&1 | { grep -v "WARNING" || true; }
 
 if [ "$INSTALL" = "0" ]; then
   echo ""
@@ -76,7 +75,8 @@ code --uninstall-extension "$ID" 2>/dev/null || true
 
 echo ""
 echo "📥 Installing new version..."
-code --install-extension "$VSIX"
+# --force so a same-version reinstall (the common dev iteration) is not skipped
+code --install-extension "$VSIX" --force
 
 INSTALLED=$(code --list-extensions --show-versions 2>/dev/null | grep -i "^$ID@" || true)
 if [ "$INSTALLED" != "$ID@$VERSION" ]; then

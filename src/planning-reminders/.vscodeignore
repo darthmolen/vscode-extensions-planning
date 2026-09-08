@@ -1,0 +1,26 @@
+# Everything the marketplace does not need. What ships is dist/, media/, and the
+# three documents the listing renders: README, CHANGELOG, LICENSE.
+
+# Sources — the bundle in dist/ is what runs
+src/**
+**/*.ts
+**/*.map
+esbuild.js
+tsconfig.json
+
+# Dev tooling
+.vscode/**
+node_modules/**
+package-lock.json
+test-extension.sh
+test-extension.ps1
+.gitignore
+
+# The vector source for icon.png. The manifest points at the PNG — the marketplace
+# rejects an SVG icon — and nothing at runtime reads this one.
+media/icon.svg
+
+# Build artifacts and secrets — a previously built VSIX would otherwise be
+# packaged inside the next one, and .env holds the Marketplace PAT.
+*.vsix
+.env

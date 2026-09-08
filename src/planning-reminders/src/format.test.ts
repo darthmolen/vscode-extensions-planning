@@ -59,6 +59,10 @@ describe('localDate', () => {
     // 23:30 on the 6th, in a zone six hours behind UTC, is already the 7th in
     // UTC. The skill says the date is the day it was answered, and the person
     // answering it is not in UTC.
+    //
+    // That zone comes from vitest.config.ts, which pins TZ. Without the pin this
+    // reads the machine's zone: it passes west of UTC and fails in UTC, where the
+    // second assertion cannot hold because there local IS UTC.
     const lateEvening = new Date(2026, 8, 6, 23, 30, 0)
 
     expect(localDate(lateEvening)).toBe('2026-09-06')

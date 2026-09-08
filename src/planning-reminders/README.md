@@ -1,5 +1,10 @@
 # Reminders
 
+[![Version](https://vsmarketplacebadges.dev/version/darthmolen.planning-reminders.svg)](https://marketplace.visualstudio.com/items?itemName=darthmolen.planning-reminders)
+[![Installs](https://vsmarketplacebadges.dev/installs/darthmolen.planning-reminders.svg)](https://marketplace.visualstudio.com/items?itemName=darthmolen.planning-reminders)
+[![Downloads](https://vsmarketplacebadges.dev/downloads-short/darthmolen.planning-reminders.svg)](https://marketplace.visualstudio.com/items?itemName=darthmolen.planning-reminders)
+[![CI](https://github.com/darthmolen/vscode-extensions-planning/actions/workflows/ci.yml/badge.svg)](https://github.com/darthmolen/vscode-extensions-planning/actions/workflows/ci.yml)
+
 Surfaces `set-reminders` markdown files as a count in the status bar, beside the errors and
 warnings — so the work no test can catch stops living in a directory nobody opens.
 
@@ -33,10 +38,13 @@ the warning audience are all settings.
 - A `$(bell) N` item in the left cluster of the status bar, showing open reminders
 - Amber background when an open reminder is addressed to an audience that costs session time
 - A tooltip listing what is open, grouped, with no filenames
+- A **quick pick** on click — every outstanding reminder, grouped, and a jump to the file
+- A **panel view** beside Terminal, with a tick box per reminder; ticking one writes the closure
+  back to the markdown rather than only changing what you see
 - Re-reads the directory when a file is written from anywhere — including by an agent, mid-session
 - Files that do not parse are surfaced by path rather than silently skipped
 
-A quick pick and a panel view follow.
+The bell hides itself at zero, so a clear board costs no status bar real estate.
 
 ## Settings
 
@@ -61,7 +69,7 @@ npm test          # vitest — parser, formatter, model, manifest wiring
 npm run compile   # tsc --noEmit, then esbuild to dist/
 ```
 
-`parse.ts`, `format.ts` and `model.ts` import nothing from `vscode` and must stay that way.
+`parse.ts`, `format.ts`, `model.ts` and `plan.ts` import nothing from `vscode` and must stay that way.
 They are the part that has to be right, which is why they are the part that is trivially
 testable. `store.ts`, `statusBar.ts` and `extension.ts` are a thin shell that decides nothing.
 
@@ -69,8 +77,8 @@ Press **F5** from the repository root — one level up from here — for an Exte
 Host. Or install a build, which is what `./test-extension.sh` does end to end:
 
 ```bash
-npx @vscode/vsce package --allow-missing-repository
-code --install-extension reminders-0.2.0.vsix
+npx vsce package
+code --install-extension planning-reminders-0.2.0.vsix --force
 ```
 
 Requires VS Code 1.80 or later — `TreeItem.checkboxState` was finalized there, and ticking a
