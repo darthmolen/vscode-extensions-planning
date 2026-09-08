@@ -1,0 +1,9 @@
+{
+  // This repository has no planning/reminders/ of its own, so the default
+  // directory would give the Extension Development Host an empty board — and an
+  // empty board is indistinguishable from a broken extension, because the bell
+  // hides itself at zero. Point it at the test fixtures instead: six real
+  // reminders, three of them open, one addressed to the learner so the amber
+  // warning path is on screen the moment F5 finishes.
+  "reminders.directory": "src/reminders/src/__fixtures__"
+}

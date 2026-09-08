@@ -1,3 +1,10 @@
-dist/
+# Build output and dependencies live inside each extension package, and each
+# package carries its own .gitignore for them. These are the root-level repeats,
+# so a tool run from the root cannot leave anything behind.
 node_modules/
+dist/
 *.vsix
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db

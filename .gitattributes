@@ -1,0 +1,8 @@
+# Shell scripts are LF everywhere, on every platform.
+#
+# A CRLF shebang is not a shebang. The interpreter reads `#!/bin/bash\r`, looks
+# for a program called `bash\r`, and reports `/bin/bash^M: bad interpreter` or
+# `\r: command not found` — neither of which names the file or the real cause.
+# This repository is developed on Windows, so without the rule at the root a new
+# script in a new directory rediscovers the problem.
+*.sh text eol=lf
