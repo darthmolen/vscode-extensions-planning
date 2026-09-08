@@ -12,7 +12,7 @@ export interface Config {
   readonly openStatus: string
   readonly warnOnAudience: readonly string[]
   readonly groupBy: 'subject' | 'audience' | 'category' | 'flat'
-  readonly closedLabel: string
+  readonly closedField: string
 }
 
 /** A reminder that parsed, with the workspace-relative path it came from. */

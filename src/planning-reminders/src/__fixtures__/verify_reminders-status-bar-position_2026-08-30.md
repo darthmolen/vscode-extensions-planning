@@ -1,6 +1,7 @@
 ---
 kind: reminder
 status: done
+closed: 2026-08-30 — Installed the packaged vsix and reloaded: the count reads 6 and lands immediately right of Problems, amber because two are learner. Tooltip groups by subject with no filenames. The priority-51 jump was not tried.
 category: verify
 audience: dm
 subject: tooling
@@ -9,8 +10,6 @@ plan: reminders-vscode-extension_2026-08-30
 ---
 
 # Press F5 and look at where the reminders count actually lands in the status bar
-
-**Closed:** 2026-08-30 — Installed the packaged vsix and reloaded: the count reads 6 and lands immediately right of Problems, amber because two are learner. Tooltip groups by subject with no filenames. The priority-51 jump was not tried.
 
 ## What to do
 

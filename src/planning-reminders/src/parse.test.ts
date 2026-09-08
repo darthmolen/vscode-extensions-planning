@@ -145,7 +145,7 @@ describe('the reminders this repository actually has', () => {
 
     // Every real reminder has bold leads in "What it changes" — `**Works:**`,
     // `**Does not work:**`. They read exactly like metadata and must not become it.
-    const documented = ['Category', 'Audience', 'Subject', 'Raised', 'Plan', 'Status', 'Closed']
+    const documented = ['Category', 'Audience', 'Subject', 'Raised', 'Plan', 'Status']
     expect([...result.fields.keys()].filter((k) => !documented.includes(k))).toEqual([])
   })
 
@@ -166,10 +166,15 @@ describe('the reminders this repository actually has', () => {
     // The migration's whole point: one copy of each fact. A file carrying both
     // `status:` and `**Status:**` is the drift the corpus went through this to
     // stop, and the fixtures are copies of the real thing.
+    //
+    // `Closed` joined this list when the contract moved the closure into a
+    // `closed:` field. It was the last fact still kept in the body, and the one
+    // most likely to be left there — a closed reminder is rarely reopened, so a
+    // stale copy sits unread until somebody trusts it.
     const text = readFixture(name)
 
     expect(text.startsWith('---\n') || text.startsWith('---\r\n')).toBe(true)
-    for (const label of ['Category', 'Audience', 'Subject', 'Raised', 'Plan', 'Status']) {
+    for (const label of ['Category', 'Audience', 'Subject', 'Raised', 'Plan', 'Status', 'Closed']) {
       expect(text).not.toContain(`**${label}:**`)
     }
   })

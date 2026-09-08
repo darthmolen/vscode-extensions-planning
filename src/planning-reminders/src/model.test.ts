@@ -13,7 +13,7 @@ const CONFIG: Config = {
   openStatus: 'open',
   warnOnAudience: ['learner'],
   groupBy: 'subject',
-  closedLabel: 'Closed',
+  closedField: 'closed',
 }
 
 const entry = (

@@ -9,7 +9,7 @@ directory.
 
 | Extension | Where | What it does |
 |---|---|---|
-| **Planning Reminders** | [`src/planning-reminders/`](src/planning-reminders/) | Shows open `set-reminders` files as a count in the status bar, a quick pick, and a panel view — and closes them from the tick box |
+| **Planning Reminders** | [`src/planning-reminders/`](src/planning-reminders/) | Shows open `reminders-set` files as a count in the status bar, a quick pick, and a panel view — and closes them from the tick box |
 
 One directory per extension under `src/`, each a self-contained npm package with its own
 `package.json`, its own build and its own tests. The root stays free of any one extension's
@@ -36,7 +36,7 @@ extension look identical** — the bell hides itself at zero.
 
 ## Where the file format is defined
 
-The Reminders extension parses and writes files produced by the `set-reminders` skill, which
+The Reminders extension parses and writes files produced by the `reminders-set` skill, which
 lives in `ai-plugins-and-skills`. **The vocabulary belongs to the skill, not to the
 extension** — the status that counts as outstanding, the label written when a reminder closes,
 and the directory the files live in are all settings, defaulted to what the skill specifies. An

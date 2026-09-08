@@ -1,5 +1,5 @@
 /**
- * Parsing a `set-reminders` markdown file.
+ * Parsing a `reminders-set` markdown file.
  *
  * This module imports nothing from `vscode` and must keep it that way — it is the
  * part that has to be right, so it is the part that stays trivially testable.

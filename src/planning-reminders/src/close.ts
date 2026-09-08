@@ -36,7 +36,7 @@ export async function closeWithPrompt(
   const before =
     document?.getText() ?? Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8')
 
-  const after = closeReminder(before, { status, date: localDate(), note, label: config.closedLabel })
+  const after = closeReminder(before, { status, date: localDate(), note, field: config.closedField })
   if (typeof after !== 'string') {
     void vscode.window.showErrorMessage('Reminders: ' + after.refused)
     return false
