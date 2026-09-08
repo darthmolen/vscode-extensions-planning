@@ -1,0 +1,93 @@
+name: Release to VS Code Marketplace
+
+# Tag-triggered publish. The tag carries which extension to ship:
+#
+#     planning-reminders-v0.2.0  ->  package "planning-reminders", version 0.2.0
+#
+# A second extension needs only its own tag prefix and a matching directory under
+# src/ — no edit to this file. That is the whole reason the tags are prefixed.
+on:
+  push:
+    tags:
+      - '*-v*'
+
+permissions:
+  contents: write # create the GitHub release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve package and version from the tag
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          PKG="${TAG%-v*}"
+          VERSION="${TAG##*-v}"
+          DIR="src/$PKG"
+          if [ ! -f "$DIR/package.json" ]; then
+            echo "::error::Tag '$TAG' resolves to '$DIR', which has no package.json."
+            exit 1
+          fi
+          {
+            echo "PKG=$PKG"
+            echo "VERSION=$VERSION"
+            echo "DIR=$DIR"
+            echo "VSIX=$PKG-$VERSION.vsix"
+          } >> "$GITHUB_ENV"
+          echo "tag=$TAG  package=$PKG  version=$VERSION  dir=$DIR"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.DIR }}/package-lock.json
+
+      # The manifest is the source of truth for what gets published; the tag only
+      # says which one and asserts the version. A mismatch means the bump was
+      # forgotten, and the marketplace would reject or mislabel the upload.
+      - name: Guard — the tag version must match the manifest
+        working-directory: ${{ env.DIR }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "tag=$VERSION  package.json=$PKG_VERSION"
+          if [ "$VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag says $VERSION, $DIR/package.json says $PKG_VERSION. Bump the manifest and re-tag."
+            exit 1
+          fi
+
+      - name: Install deps
+        working-directory: ${{ env.DIR }}
+        run: npm ci
+
+      - name: Type-check and bundle
+        working-directory: ${{ env.DIR }}
+        run: npm run compile
+
+      - name: Test
+        working-directory: ${{ env.DIR }}
+        run: npm test
+
+      # The base URLs are load-bearing for a nested package: the marketplace resolves
+      # relative README links against the repository root, which is one directory too
+      # high here and would 404 every one of them.
+      - name: Package VSIX
+        working-directory: ${{ env.DIR }}
+        run: |
+          npx vsce package \
+            -o "$VSIX" \
+            --baseContentUrl "https://github.com/${GITHUB_REPOSITORY}/blob/main/${DIR}" \
+            --baseImagesUrl "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/${DIR}"
+
+      - name: Publish to Marketplace
+        working-directory: ${{ env.DIR }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }} # Azure DevOps PAT; = MarketplaceAdoPat locally
+        run: npx vsce publish --packagePath "$VSIX"
+
+      - name: Create the GitHub release with the VSIX attached
+        working-directory: ${{ env.DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes "$VSIX"

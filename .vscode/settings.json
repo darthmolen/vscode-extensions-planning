@@ -5,5 +5,5 @@
   // hides itself at zero. Point it at the test fixtures instead: six real
   // reminders, three of them open, one addressed to the learner so the amber
   // warning path is on screen the moment F5 finishes.
-  "reminders.directory": "src/reminders/src/__fixtures__"
+  "reminders.directory": "src/planning-reminders/src/__fixtures__"
 }

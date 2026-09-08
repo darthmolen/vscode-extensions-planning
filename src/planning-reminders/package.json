@@ -1,15 +1,35 @@
 {
-  "name": "reminders",
+  "name": "planning-reminders",
   "displayName": "Reminders",
   "description": "Surfaces set-reminders markdown files as a status bar count, a quick pick, and a panel view.",
   "version": "0.2.0",
-  "publisher": "pyquest",
-  "private": true,
+  "publisher": "darthmolen",
   "license": "MIT",
+  "author": {
+    "name": "darthmolen"
+  },
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/darthmolen/vscode-extensions-planning.git",
+    "directory": "src/planning-reminders"
+  },
+  "bugs": {
+    "url": "https://github.com/darthmolen/vscode-extensions-planning/issues"
+  },
+  "homepage": "https://github.com/darthmolen/vscode-extensions-planning/tree/main/src/planning-reminders#readme",
+  "keywords": [
+    "planning",
+    "reminders",
+    "kanban",
+    "markdown",
+    "todo"
+  ],
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
+    "Notebooks",
     "Other"
   ],
   "main": "./dist/extension.js",
@@ -181,6 +201,7 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.24.0",
     "typescript": "^5.7.2",
     "vitest": "^4.1.11"

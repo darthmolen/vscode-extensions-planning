@@ -6,11 +6,11 @@
       "type": "extensionHost",
       "request": "launch",
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/src/reminders",
+        "--extensionDevelopmentPath=${workspaceFolder}/src/planning-reminders",
         "${workspaceFolder}"
       ],
       "outFiles": [
-        "${workspaceFolder}/src/reminders/dist/**/*.js"
+        "${workspaceFolder}/src/planning-reminders/dist/**/*.js"
       ],
       "preLaunchTask": "reminders: compile"
     }

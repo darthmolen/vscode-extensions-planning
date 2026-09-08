@@ -1,0 +1,37 @@
+name: CI
+
+# Every PR to main. The extension packages live one level down under src/, so the
+# job names the package directory rather than assuming one at the repository root.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: src/planning-reminders
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/planning-reminders/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      # Unlike the copilot-cli extension, this suite is deterministic vitest over
+      # modules that import nothing from vscode. It runs here, and it gates merges.
+      - name: Type-check and bundle
+        run: npm run compile
+
+      - name: Test
+        run: npm test
